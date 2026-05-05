@@ -217,7 +217,7 @@ export default function App() {
 
   useEffect(() => {
     if (stage === 'intro') {
-      // "Hello Bryce..." is handled by TypewriterText component's onComplete
+      // Intro text is handled by TypewriterText component's onComplete.
     }
   }, [stage]);
 
@@ -280,7 +280,7 @@ export default function App() {
             </motion.button>
           )}
           
-          {/* STAGE 1: HELLO BRYCE */}
+          {/* STAGE 1: HELLO OPERATOR */}
           {stage === 'intro' && (
             <motion.div
               key="intro"
@@ -290,7 +290,7 @@ export default function App() {
               className="text-4xl md:text-6xl font-display text-white tracking-widest chromatic-aberration"
             >
               <TypewriterText 
-                text="HELLO BRYCE..." 
+                text="HELLO OPERATOR..." 
                 speed={100} 
                 onComplete={handleIntroComplete} 
                 className="glitch-effect"
