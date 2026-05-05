@@ -461,22 +461,10 @@ export default function App() {
                 </motion.div>
               </div>
 
-              {/* Bottom Status Bar */}
-              <motion.div 
-                initial={{ y: 50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="absolute bottom-8 w-full max-w-4xl border-t border-neon-blue/30 pt-4 flex justify-between items-center px-8 text-neon-blue/60 text-xs font-mono"
-              >
-                <div className="flex gap-8">
-                  <span>SYS.VER.4.2.0</span>
-                  <span>LOC: UNKNOWN</span>
-                </div>
-                <div className="flex gap-4 items-center">
-                  <span className="animate-pulse">AWAITING INPUT</span>
-                  <div className="w-2 h-2 bg-neon-green rounded-full"></div>
-                </div>
-              </motion.div>
+              {/* Terminal / Chat Area */}
+              <div className="absolute bottom-4 w-full max-w-4xl px-8 flex flex-col items-center z-50">
+                 <TerminalInterface />
+              </div>
             </motion.div>
           )}
 
@@ -485,3 +473,103 @@ export default function App() {
     </div>
   );
 }
+
+const TerminalInterface = () => {
+  const [inputVal, setInputVal] = useState('');
+  const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([
+    { role: 'model', text: 'SYSTEM ONLINE. PROMPT REQUIRED.'}
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputVal.trim() || isTyping) return;
+    
+    const userMsg = inputVal.trim();
+    setInputVal('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setIsTyping(true);
+    soundManager.playTypingSound();
+
+    try {
+      const { generateAVAResponse } = await import('./utils/ai');
+      
+      const history = messages.slice(1).map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+
+      const reply = await generateAVAResponse(history, userMsg);
+      setMessages(prev => [...prev, { role: 'model', text: reply }]);
+      soundManager.playSuccessChime();
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'model', text: 'ERR_CONNECTION_LOST.' }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  return (
+    <div className="w-full bg-black/80 border border-neon-blue/30 backdrop-blur-md rounded shadow-[0_0_15px_rgba(0,243,255,0.1)] overflow-hidden flex flex-col h-48 md:h-56">
+      {/* Header */}
+      <div className="bg-neon-blue/10 border-b border-neon-blue/30 px-4 py-1 flex justify-between items-center text-neon-blue text-[10px] font-mono">
+        <div className="flex gap-4">
+           <span>TERMINAL_LINK</span>
+           <span className="opacity-70">UPLINK_SECURE</span>
+        </div>
+        <div className="flex gap-2 items-center">
+           <span className="animate-pulse">ACTIVE</span>
+           <div className="w-1.5 h-1.5 bg-neon-green rounded-full"></div>
+        </div>
+      </div>
+      
+      {/* Log */}
+      <div className="flex-1 overflow-y-auto p-4 text-xs font-mono space-y-2" ref={scrollRef}>
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] ${msg.role === 'user' ? 'text-neon-pink text-right' : 'text-neon-blue'}`}>
+              <span className="opacity-50 mr-2 text-[8px]">{msg.role === 'user' ? 'GUEST>' : 'AVA>'}</span>
+              <span>{msg.text}</span>
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+           <div className="text-neon-blue opacity-70 animate-pulse">
+             <span className="opacity-50 mr-2 text-[8px]">{'AVA>'}</span>
+             PROCESSING...
+           </div>
+        )}
+      </div>
+
+      {/* Input Form */}
+      <form onSubmit={handleSubmit} className="border-t border-neon-blue/30 flex bg-black">
+        <div className="px-3 py-2 text-neon-pink opacity-70 flex items-center justify-center">
+          <Terminal size={14} />
+        </div>
+        <input 
+          type="text" 
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          placeholder="ENTER COMMAND..."
+          className="flex-1 bg-transparent border-none outline-none text-neon-pink text-xs font-mono placeholder:text-neon-pink/30"
+          autoComplete="off"
+          disabled={isTyping}
+        />
+        <button 
+          type="submit" 
+          className="px-4 text-[10px] font-mono text-neon-blue border-l border-neon-blue/30 hover:bg-neon-blue/10 disabled:opacity-50"
+          disabled={isTyping || !inputVal.trim()}
+        >
+          EXECUTE
+        </button>
+      </form>
+    </div>
+  );
+};
